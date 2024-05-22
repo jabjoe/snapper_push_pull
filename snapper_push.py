@@ -41,8 +41,12 @@ class subv_map_t:
         r =[]
         for path, subv in targets.paths.items():
             ref = self.paths.get(path)
-            if ref and (ref.id != subv.id or ref.uuid != subv.uuid):
-                print(f"No match for {subv} {ref}")
+            if ref:
+                if ref.id != subv.id or ref.uuid != subv.uuid:
+                    print(f"Bad match {subv} {ref}")
+                    r+=[subv]
+            else:
+                print(f"No match for {subv}")
                 r+=[subv]
         for subv in r:
             targets.remove(subv)
