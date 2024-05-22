@@ -3,6 +3,7 @@
 import os
 import shlex
 import argparse
+from pathlib import Path
 from collections import namedtuple 
 
 subv_t = namedtuple('subv_t', ['id', 'path', 'uuid'])
@@ -35,6 +36,7 @@ class subv_map_t:
                 except ValueError:
                     snapper_id = None
                 if snapper_id:
+                    path = os.path.join(*Path(path).parts[1:])
                     self.add(subv_t(snapper_id, path, parts[10]))
 
     def get_mismatches(self, targets):
@@ -73,7 +75,10 @@ class local_btrfs_t:
         return f'btrfs subv del "{self.mnt}"/"{subv.path}" && rm -rf "{self.mnt}"/"{parent_path}"'
 
     def get_send_cmd(self, parent_subv, subv):
-        return f'btrfs send -p "{self.mnt}"/"{parent_subv.path}" "{self.mnt}"/"{subv.path}"'
+        if parent_subv:
+            return f'btrfs send -p "{self.mnt}"/"{parent_subv.path}" "{self.mnt}"/"{subv.path}"'
+        else:
+            return f'btrfs send "{self.mnt}"/"{subv.path}"'
 
     def get_recv_cmd(self, parent_path):
         return f'mkdir -p "{parent_path}" && btrfs receive "{parent_path}"/'
@@ -188,22 +193,29 @@ if __name__ == '__main__':
     mismatches = src_subvs.get_mismatches(dst_subvs)
     dst.delete_subvs(mismatches)
 
-    matches = src_subvs.get_matches(dst_subvs)
+    if len(dst_subvs.paths):
+        matches = src_subvs.get_matches(dst_subvs)
 
-    if not matches:
-        print("No matches found")
-        exit(-1)
+        if not matches:
+            print("No matches found")
+            exit(-1)
 
-    ids = [ subv.id for subv in matches ]
-    ids.sort()
+        ids = [ subv.id for subv in matches ]
+        ids.sort()
 
-    highest_match_id = ids[-1]
+        highest_match_id = ids[-1]
 
-    new_refs = list(filter(lambda ref : True if ref.id > highest_match_id else False, src_subvs.ids.values()))
-    parent_ref = src_subvs.ids[highest_match_id]
+        new_refs = list(filter(lambda ref : True if ref.id > highest_match_id else False, src_subvs.ids.values()))
+        parent_ref = src_subvs.ids[highest_match_id]
+    else:
+        print("No matching destinations, starting fresh.")
+
+        ids = list(src_subvs.ids.keys())
+        ids.sort()
+
+        new_refs = [ src_subvs.ids[ref_id] for ref_id in ids ]
+        parent_ref = None
 
     for ref in new_refs:
         dst.recv_subvs(src, parent_ref, ref)
         parent_ref = ref
-
-
