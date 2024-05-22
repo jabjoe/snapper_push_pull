@@ -31,7 +31,9 @@ def get_subv_map_from_lines(lines):
     for line in lines:
         parts = shlex.split(line)
         if parts:
-          r.add(subv_t(parts[1], parts[12], parts[10]))
+          path=parts[12]
+          snapper_id = int(os.path.basename(os.path.dirname(local_subv.path)))
+          r.add(subv_t(snapper_id, path, parts[10]))
     return r
 
 
