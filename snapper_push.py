@@ -42,8 +42,8 @@ class subv_map_t:
         for path, subv in targets.paths.items():
             ref = self.paths.get(path)
             if ref and (ref.id != subv.id or ref.uuid != subv.uuid):
-                print(f"No match for {subv}")
-                r+=[ref]
+                print(f"No match for {subv} {ref}")
+                r+=[subv]
         for subv in r:
             targets.remove(subv)
         return r
@@ -72,7 +72,7 @@ class local_btrfs_t:
         return f'btrfs send -p "{self.mnt}"/"{parent_subv.path}" "{self.mnt}"/"{subv.path}"'
 
     def get_recv_cmd(self, parent_path):
-        return f'mkdir -p \"{self.mnt}\"/\"{parent_path}\" && btrfs receive \"{self.mnt}\"/\"{parent_path}\"/'
+        return f'mkdir -p "{parent_path}" && btrfs receive "{parent_path}"/'
 
     def get_info_xml_cmd(self, parent_path):
         return f'cat "{self.mnt}"/"{parent_path}"/info.xml'
@@ -98,7 +98,7 @@ class local_btrfs_t:
                     exit(err)
 
     def get_info_xml(self, parent_path):
-        cmd = seld.get_info_xml_cmd(parent_path)
+        cmd = self.get_info_xml_cmd(parent_path)
         print("CMD:", cmd)
         return os.popen(cmd).read()
 
@@ -112,7 +112,7 @@ class local_btrfs_t:
         send_cmd = btrfs_source.get_send_cmd(parent_subv, subv)
         parent_path = os.path.dirname(subv.path)
         recv_cmd = self.get_recv_cmd(parent_path)
-        cmd += f"{send_cmd} | {recv_cmd}"
+        cmd = f"{send_cmd} | {recv_cmd}"
         print("CMD:", cmd)
         if not dryrun:
             err = os.system(cmd)
