@@ -25,16 +25,32 @@ class subv_map_t:
         self.paths.pop(subv.path, None)
         self.uuids.pop(subv.uuid, None)
 
+    def from_subv_list(self, lines):
+        for line in lines:
+            parts = shlex.split(line)
+            if parts:
+              path=parts[12]
+              snapper_id = int(os.path.basename(os.path.dirname(local_subv.path)))
+              self.add(subv_t(snapper_id, path, parts[10]))
 
-def get_subv_map_from_lines(lines):
-    r = subv_map_t()
-    for line in lines:
-        parts = shlex.split(line)
-        if parts:
-          path=parts[12]
-          snapper_id = int(os.path.basename(os.path.dirname(local_subv.path)))
-          r.add(subv_t(snapper_id, path, parts[10]))
-    return r
+    def get_mismatches(self, targets):
+        r =[]
+        for path, subv in targets.paths.items():
+            ref = self.paths.get(path)
+            if ref and (ref.id != subv.id or ref.uuid != subv.uuid):
+                print(f"No match for {subv}")
+                r+=[ref]
+        for subv in r:
+            targets.remove(subv)
+        return r
+ 
+    def get_matches(self, targets):
+        r = []
+        for path, subv in targets.paths.items():
+            ref = self.paths.get(path)
+            if ref and ref.uuid == subv.uuid and ref.id == subv.id:
+                r+=[ref]
+        return r
 
 
 class remote_btrfs_target_t:
@@ -48,7 +64,9 @@ class remote_btrfs_target_t:
         print("CMD:",cmd)
         with os.popen(cmd) as p:
             lines = p.read().split('\n')
-        return get_subv_map_from_lines(lines)
+        r = subv_map_t()
+        r.from_subv_list(lines)
+        return r
 
     def delete_subvs(self, doomed_list):
         for subv in doomed_list:
@@ -79,28 +97,10 @@ class remote_btrfs_target_t:
 def get_local_subv_map(mnt):
     cmd = f'btrfs subv list -o -p -u "{mnt}"/'
     print("CMD:", cmd)
-    return get_subv_map_from_lines(os.popen(cmd).read().split('\n'))
-
-
-def get_mismatches(refs, targets):
-    r = {}
-    for path, subv in targets.paths.items():
-        ref = refs.paths.get(path)
-        if ref and (ref.id != subv.id or ref.uuid != subv.uuid):
-            print(f"No match for {subv}")
-            r[ref.uuid]=ref
-    for subv in r.values():
-        targets.remove(subv)
-    return r.values()
-
-
-def get_matches(refs, targets):
-    r = {}
-    for path, subv in targets.paths.items():
-        ref = refs.paths.get(path)
-        if ref:
-            r[ref.uuid]=ref
-    return r.values()
+    lines=os.popen(cmd).read().split('\n')
+    r = subv_map_t()
+    r.from_subv_list(lines)
+    return r
 
 
 parser = argparse.ArgumentParser("simple_example")
@@ -119,10 +119,10 @@ if __name__ == '__main__':
     refs = get_local_subv_map(args.src)
     targets = remote.get_subv_map()
 
-    mismatches = get_mismatches(refs, targets)
+    mismatches = refs.get_mismatches(targets)
     remote.delete_subvs(mismatches)
 
-    matches = get_matches(refs, targets)
+    matches = refs.get_matches(targets)
 
     if not matches:
         print("No matches found", refs.paths.keys(), targets.paths.keys())
