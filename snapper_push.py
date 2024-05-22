@@ -29,9 +29,13 @@ class subv_map_t:
         for line in lines:
             parts = shlex.split(line)
             if parts:
-              path=parts[12]
-              snapper_id = int(os.path.basename(os.path.dirname(local_subv.path)))
-              self.add(subv_t(snapper_id, path, parts[10]))
+                path=parts[12]
+                try:
+                    snapper_id = int(os.path.basename(os.path.dirname(path)))
+                except ValueError:
+                    snapper_id = None
+                if snapper_id:
+                    self.add(subv_t(snapper_id, path, parts[10]))
 
     def get_mismatches(self, targets):
         r =[]
@@ -53,79 +57,137 @@ class subv_map_t:
         return r
 
 
-class remote_btrfs_target_t:
-    def __init__(self, user, host, mnt):
-        self.user = user
-        self.host = host
+class local_btrfs_t:
+    def __init__(self, mnt):
         self.mnt = mnt
 
+    def get_subv_list_cmd(self):
+        return f'btrfs subv list -o -p -u "{self.mnt}"/'
+
+    def get_del_cmd(self, subv):
+        parent_path = os.path.dirname(subv.path)
+        return f'btrfs subv del "{self.mnt}"/"{subv.path}" && rm -rf "{self.mnt}"/"{parent_path}"'
+
+    def get_send_cmd(self, parent_subv, subv):
+        return f'btrfs send -p "{self.mnt}"/"{parent_subv.path}" "{self.mnt}"/"{subv.path}"'
+
+    def get_recv_cmd(self, parent_path):
+        return f'mkdir -p \"{self.mnt}\"/\"{parent_path}\" && btrfs receive \"{self.mnt}\"/\"{parent_path}\"/'
+
+    def get_info_xml_cmd(self, parent_path):
+        return f'cat "{self.mnt}"/"{parent_path}"/info.xml'
+
+    def set_info_xml_cmd(self, parent_path, info_xml):
+        return f'cat > "{self.mnt}"/"{parent_path}"/info.xml'
+
     def get_subv_map(self):
-        cmd = f"ssh {self.user}@{self.host} 'btrfs subv list -o -p -u \"{self.mnt}\"/'"
-        print("CMD:",cmd)
-        with os.popen(cmd) as p:
-            lines = p.read().split('\n')
+        cmd = self.get_subv_list_cmd()
+        print("CMD:", cmd)
+        lines=os.popen(cmd).read().split('\n')
         r = subv_map_t()
         r.from_subv_list(lines)
         return r
 
     def delete_subvs(self, doomed_list):
         for subv in doomed_list:
-            parent_path = os.path.dirname(subv.path)
-            cmd = f"ssh {self.host} 'btrfs subv del {self.mnt}/{subv.path} && rm -rf {self.mnt}/{parent_path}'"
+            cmd = self.get_del_cmd(subv)
             print("CMD:", cmd)
             if not dryrun:
-                self.client.exec_command(cmd)
+                err = os.system(cmd)
+                if err:
+                    exit(err)
 
-    def push_local(self, local_mnt, local_parent_ref, local_subv):
-        parent_path = os.path.dirname(local_subv.path)
-        cmd = f'btrfs send -p "{local_mnt}"/"{local_parent_ref.path}" "{local_mnt}"/"{local_subv.path}" | '
-        cmd += f"ssh {self.user}@{self.host} 'mkdir -p \"{self.mnt}\"/\"{parent_path}\" && btrfs receive \"{self.mnt}\"/\"{parent_path}\"/'"
+    def get_info_xml(self, parent_path):
+        cmd = seld.get_info_xml_cmd(parent_path)
+        print("CMD:", cmd)
+        return os.popen(cmd).read()
+
+    def set_info_xml(self, parent_path, info_xml):
+        cmd = self.set_info_xml_cmd(parent_path, info_xml)
+        print("CMD:", cmd)
+        if not dryrun:
+            os.popen(cmd, 'w').write(info_xml)
+
+    def recv_subvs(self, btrfs_source, parent_subv, subv):
+        send_cmd = btrfs_source.get_send_cmd(parent_subv, subv)
+        parent_path = os.path.dirname(subv.path)
+        recv_cmd = self.get_recv_cmd(parent_path)
+        cmd += f"{send_cmd} | {recv_cmd}"
         print("CMD:", cmd)
         if not dryrun:
             err = os.system(cmd)
             if err:
                 exit(err)
-        cmd = f'scp "{local_mnt}"/"{parent_path}"/info.xml {self.user}@{self.host}:"{self.mnt}"/"{parent_path}"/'
-        print("CMD:", cmd)
-        if not dryrun:
-            err = os.system(cmd)
-            if err:
-                exit(err)
+        info_xml = btrfs_source.get_info_xml(parent_path)
+        self.set_info_xml(parent_path, info_xml)
 
 
 
-def get_local_subv_map(mnt):
-    cmd = f'btrfs subv list -o -p -u "{mnt}"/'
-    print("CMD:", cmd)
-    lines=os.popen(cmd).read().split('\n')
-    r = subv_map_t()
-    r.from_subv_list(lines)
-    return r
+class remote_btrfs_t(local_btrfs_t):
+    def __init__(self, user, host, mnt):
+        super().__init__(mnt)
+        self.user = user
+        self.host = host
+
+    def _ssh_wrap_cmd(self, cmd):
+        return f"ssh {self.user}@{self.host} '{cmd}'"
+
+    def get_subv_list_cmd(self):
+        return self._ssh_wrap_cmd(super().get_subv_list_cmd())
+
+    def get_del_cmd(self, subv):
+        return self._ssh_wrap_cmd(super().get_del_cmd(subv))
+
+    def get_send_cmd(self, parent_subv, subv):
+        return self._ssh_wrap_cmd(super().get_send_cmd(parent_subv, subv))
+
+    def get_recv_cmd(self, parent_path):
+        return self._ssh_wrap_cmd(super().get_recv_cmd(parent_path))
+
+    def get_info_xml_cmd(self, parent_path):
+        return self._ssh_wrap_cmd(super().get_info_xml_cmd(parent_path))
+
+    def set_info_xml_cmd(self, parent_path, info_xml):
+        return self._ssh_wrap_cmd(super().set_info_xml_cmd(parent_path, info_xml))
+
+
+
+def get_btrfs(path):
+    parts = path.split(':')
+    if len(parts) > 1:
+        hostname = parts[0]
+        mnt = parts[1]
+        parts = hostname.split('@')
+        if len(parts) > 1:
+            username = parts[0]
+            hostname = parts[1]
+            return remote_btrfs_t(username, hostname, mnt)
+    return local_btrfs_t(path)
 
 
 parser = argparse.ArgumentParser("simple_example")
 parser.add_argument("--src", help="Source path of Snapper snapshots.", type=str)
 parser.add_argument("--dst", help="Destination path of Snapper snapshots.", type=str)
-parser.add_argument("--host", help="Host of desintation.", type=str)
-parser.add_argument("--user", help="Username for desintation.", type=str)
 parser.add_argument('--dryrun', help="Don't acturally do it.", action='store_true')
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
     dryrun = args.dryrun
-    remote = remote_btrfs_target_t(args.user, args.host, args.dst)
 
-    refs = get_local_subv_map(args.src)
-    targets = remote.get_subv_map()
+    src = get_btrfs(args.src)
+    dst = get_btrfs(args.dst)
 
-    mismatches = refs.get_mismatches(targets)
-    remote.delete_subvs(mismatches)
+    src_subvs = src.get_subv_map()
+    dst_subvs = dst.get_subv_map()
 
-    matches = refs.get_matches(targets)
+    mismatches = src_subvs.get_mismatches(dst_subvs)
+    dst.delete_subvs(mismatches)
+
+    matches = src_subvs.get_matches(dst_subvs)
 
     if not matches:
-        print("No matches found", refs.paths.keys(), targets.paths.keys())
+        print("No matches found")
         exit(-1)
 
     ids = [ subv.id for subv in matches ]
@@ -133,10 +195,11 @@ if __name__ == '__main__':
 
     highest_match_id = ids[-1]
 
-    new_refs = list(filter(lambda ref : True if ref.id > highest_match_id else False, refs.ids.values()))
-    parent_ref = refs.ids[highest_match_id]
+    new_refs = list(filter(lambda ref : True if ref.id > highest_match_id else False, src_subvs.ids.values()))
+    parent_ref = src_subvs.ids[highest_match_id]
 
     for ref in new_refs:
-        remote.push_local(args.src, parent_ref, ref)
+        dst.recv_subvs(src, parent_ref, ref)
+        parent_ref = ref
 
 
