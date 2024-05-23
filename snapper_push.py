@@ -68,7 +68,10 @@ class local_btrfs_t:
         print(f"Mount: {mnt}")
         self.mnt = mnt
 
-    def get_subv_list_cmd(self):
+    def get_subv_recv_list_cmd(self):
+        return f'btrfs subv list -o -p -R "{self.mnt}"/'
+
+    def get_subv_send_list_cmd(self):
         return f'btrfs subv list -o -p -u "{self.mnt}"/'
 
     def get_del_cmd(self, subv):
@@ -90,13 +93,18 @@ class local_btrfs_t:
     def set_info_xml_cmd(self, parent_path, info_xml):
         return f'cat > "{self.mnt}"/"{parent_path}"/info.xml'
 
-    def get_subv_map(self):
-        cmd = self.get_subv_list_cmd()
+    def _get_subv_map(self, cmd):
         print("CMD:", cmd)
         lines=os.popen(cmd).read().split('\n')
         r = subv_map_t()
         r.from_subv_list(lines)
         return r
+
+    def get_subv_recv_map(self):
+        return self._get_subv_map(self.get_subv_recv_list_cmd())
+
+    def get_subv_send_map(self):
+        return self._get_subv_map(self.get_subv_send_list_cmd())
 
     def delete_subvs(self, doomed_list):
         for subv in doomed_list:
@@ -145,8 +153,11 @@ class remote_btrfs_t(local_btrfs_t):
     def _ssh_wrap_cmd(self, cmd):
         return f"ssh {self.user}@{self.host} '{cmd}'"
 
-    def get_subv_list_cmd(self):
-        return self._ssh_wrap_cmd(super().get_subv_list_cmd())
+    def get_subv_recv_list_cmd(self):
+        return self._ssh_wrap_cmd(super().get_subv_recv_list_cmd())
+
+    def get_subv_send_list_cmd(self):
+        return self._ssh_wrap_cmd(super().get_subv_send_list_cmd())
 
     def get_del_cmd(self, subv):
         return self._ssh_wrap_cmd(super().get_del_cmd(subv))
@@ -191,8 +202,8 @@ if __name__ == '__main__':
     src = get_btrfs(args.src)
     dst = get_btrfs(args.dst)
 
-    src_subvs = src.get_subv_map()
-    dst_subvs = dst.get_subv_map()
+    src_subvs = src.get_subv_send_map()
+    dst_subvs = dst.get_subv_recv_map()
 
     mismatches = src_subvs.get_mismatches(dst_subvs)
     dst.delete_subvs(mismatches)
