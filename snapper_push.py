@@ -84,8 +84,11 @@ class local_btrfs_t:
         else:
             return f'btrfs send "{self.mnt}"/"{subv.path}"'
 
+    def get_pre_recv_cmd(self, parent_path):
+        return f'mkdir -p "{self.mnt}"/"{parent_path}"'
+
     def get_recv_cmd(self, parent_path):
-        return f'mkdir -p "{self.mnt}"/"{parent_path}" && btrfs receive "{self.mnt}"/"{parent_path}"/'
+        return f'btrfs receive "{self.mnt}"/"{parent_path}"/'
 
     def get_info_xml_cmd(self, parent_path):
         return f'cat "{self.mnt}"/"{parent_path}"/info.xml'
@@ -131,15 +134,25 @@ class local_btrfs_t:
     def recv_subvs(self, btrfs_source, parent_subv, subv):
         send_cmd = btrfs_source.get_send_cmd(parent_subv, subv)
         parent_path = os.path.dirname(subv.path)
+        pre_recv_cmd = self.get_pre_recv_cmd(parent_path)
+        print("CMD:", pre_recv_cmd)
+
+        if not dryrun:
+            err = os.system(pre_recv_cmd)
+            if err:
+                exit(err)
+
         recv_cmd = self.get_recv_cmd(parent_path)
+
         cmd = f"{send_cmd} | {recv_cmd}"
         print("CMD:", cmd)
+
         if not dryrun:
             err = os.system(cmd)
             if err:
                 exit(err)
-        info_xml = btrfs_source.get_info_xml(parent_path)
-        self.set_info_xml(parent_path, info_xml)
+            info_xml = btrfs_source.get_info_xml(parent_path)
+            self.set_info_xml(parent_path, info_xml)
 
 
 
@@ -164,6 +177,9 @@ class remote_btrfs_t(local_btrfs_t):
 
     def get_send_cmd(self, parent_subv, subv):
         return self._ssh_wrap_cmd(super().get_send_cmd(parent_subv, subv))
+
+    def get_pre_recv_cmd(self, parent_path):
+        return self._ssh_wrap_cmd(super().get_pre_recv_cmd(parent_path))
 
     def get_recv_cmd(self, parent_path):
         return self._ssh_wrap_cmd(super().get_recv_cmd(parent_path))
