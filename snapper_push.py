@@ -65,6 +65,7 @@ class subv_map_t:
 
 class local_btrfs_t:
     def __init__(self, mnt):
+        print(f"Mount: {mnt}")
         self.mnt = mnt
 
     def get_subv_list_cmd(self):
@@ -81,7 +82,7 @@ class local_btrfs_t:
             return f'btrfs send "{self.mnt}"/"{subv.path}"'
 
     def get_recv_cmd(self, parent_path):
-        return f'mkdir -p "{parent_path}" && btrfs receive "{parent_path}"/'
+        return f'mkdir -p "{self.mnt}"/"{parent_path}" && btrfs receive "{self.mnt}"/"{parent_path}"/'
 
     def get_info_xml_cmd(self, parent_path):
         return f'cat "{self.mnt}"/"{parent_path}"/info.xml'
@@ -134,6 +135,7 @@ class local_btrfs_t:
 
 class remote_btrfs_t(local_btrfs_t):
     def __init__(self, user, host, mnt):
+        print(f"Remote {user}@{host}")
         super().__init__(mnt)
         self.user = user
         self.host = host
