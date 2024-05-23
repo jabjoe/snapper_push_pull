@@ -206,8 +206,8 @@ def get_btrfs(path):
 
 
 parser = argparse.ArgumentParser("simple_example")
-parser.add_argument("--src", help="Source path of Snapper snapshots.", type=str)
-parser.add_argument("--dst", help="Destination path of Snapper snapshots.", type=str)
+parser.add_argument('src', metavar='src_path', type=str, nargs='?', help='snapper controlled source directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
+parser.add_argument('dst', metavar='dst_path', type=str, nargs='?', help='destination directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
 parser.add_argument('--dryrun', help="Don't acturally do it.", action='store_true')
 
 
