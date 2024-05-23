@@ -116,7 +116,9 @@ class local_btrfs_t:
         cmd = self.set_info_xml_cmd(parent_path, info_xml)
         print("CMD:", cmd)
         if not dryrun:
-            os.popen(cmd, 'w').write(info_xml)
+            p = os.popen(cmd, 'w')
+            p.write(info_xml)
+            p.flush()
 
     def recv_subvs(self, btrfs_source, parent_subv, subv):
         send_cmd = btrfs_source.get_send_cmd(parent_subv, subv)
