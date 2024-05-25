@@ -130,6 +130,7 @@ class local_btrfs_t:
             p = os.popen(cmd, 'w')
             p.write(info_xml)
             p.flush()
+            p.close()
 
     def recv_subvs(self, btrfs_source, parent_subv, subv):
         send_cmd = btrfs_source.get_send_cmd(parent_subv, subv)
