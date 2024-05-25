@@ -3,8 +3,11 @@
 import os
 import shlex
 import argparse
+import logging
 from pathlib import Path
 from collections import namedtuple 
+
+logger = logging.getLogger("snapper_push_push")
 
 subv_t = namedtuple('subv_t', ['id', 'path', 'uuid'])
 
@@ -45,10 +48,10 @@ class subv_map_t:
             ref = self.paths.get(path)
             if ref:
                 if ref.id != subv.id or ref.uuid != subv.uuid:
-                    print(f"Bad match {subv} {ref}")
+                    logger.error(f"Bad match {subv} {ref}")
                     r+=[subv]
             else:
-                print(f"No match for {subv}")
+                logger.error(f"No match for {subv}")
                 r+=[subv]
         for subv in r:
             targets.remove(subv)
@@ -65,7 +68,7 @@ class subv_map_t:
 
 class local_btrfs_t:
     def __init__(self, mnt):
-        print(f"Mount: {mnt}")
+        logger.info(f"Mount: {mnt}")
         self.mnt = mnt
 
     def get_subv_recv_list_cmd(self):
@@ -97,7 +100,7 @@ class local_btrfs_t:
         return f'cat > "{self.mnt}"/"{parent_path}"/info.xml'
 
     def _get_subv_map(self, cmd):
-        print("CMD:", cmd)
+        logger.debug("CMD:", cmd)
         lines=os.popen(cmd).read().split('\n')
         r = subv_map_t()
         r.from_subv_list(lines)
@@ -112,7 +115,7 @@ class local_btrfs_t:
     def delete_subvs(self, doomed_list):
         for subv in doomed_list:
             cmd = self.get_del_cmd(subv)
-            print("CMD:", cmd)
+            logger.debug("CMD:", cmd)
             if not dryrun:
                 err = os.system(cmd)
                 if err:
@@ -120,12 +123,12 @@ class local_btrfs_t:
 
     def get_info_xml(self, parent_path):
         cmd = self.get_info_xml_cmd(parent_path)
-        print("CMD:", cmd)
+        logger.debug("CMD:", cmd)
         return os.popen(cmd).read()
 
     def set_info_xml(self, parent_path, info_xml):
         cmd = self.set_info_xml_cmd(parent_path, info_xml)
-        print("CMD:", cmd)
+        logger.debug("CMD:", cmd)
         if not dryrun:
             p = os.popen(cmd, 'w')
             p.write(info_xml)
@@ -136,7 +139,7 @@ class local_btrfs_t:
         send_cmd = btrfs_source.get_send_cmd(parent_subv, subv)
         parent_path = os.path.dirname(subv.path)
         pre_recv_cmd = self.get_pre_recv_cmd(parent_path)
-        print("CMD:", pre_recv_cmd)
+        logger.debug("CMD:", pre_recv_cmd)
 
         if not dryrun:
             err = os.system(pre_recv_cmd)
@@ -146,7 +149,7 @@ class local_btrfs_t:
         recv_cmd = self.get_recv_cmd(parent_path)
 
         cmd = f"{send_cmd} | {recv_cmd}"
-        print("CMD:", cmd)
+        logger.debug("CMD:", cmd)
 
         if not dryrun:
             err = os.system(cmd)
@@ -159,7 +162,7 @@ class local_btrfs_t:
 
 class remote_btrfs_t(local_btrfs_t):
     def __init__(self, user, host, mnt):
-        print(f"Remote {user}@{host}")
+        logger.info(f"Remote {user}@{host}")
         super().__init__(mnt)
         self.user = user
         self.host = host
@@ -210,11 +213,19 @@ parser = argparse.ArgumentParser("simple_example")
 parser.add_argument('src', metavar='src_path', type=str, nargs='?', help='snapper controlled source directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
 parser.add_argument('dst', metavar='dst_path', type=str, nargs='?', help='destination directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
 parser.add_argument('--dryrun', help="Don't acturally do it.", action='store_true')
+parser.add_argument('-v', '--verbose', help="Info log.", action='store_true')
+parser.add_argument('--debug', help="Debug log.", action='store_true')
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
     dryrun = args.dryrun
+
+    if args.verbose:
+        logger.basicConfig(level=logging.INFO)
+
+    if args.debug:
+        logger.basicConfig(level=logging.DEBUG)
 
     src = get_btrfs(args.src)
     dst = get_btrfs(args.dst)
@@ -229,7 +240,7 @@ if __name__ == '__main__':
         matches = src_subvs.get_matches(dst_subvs)
 
         if not matches:
-            print("No matches found")
+            logger.error("No matches found")
             exit(-1)
 
         ids = [ subv.id for subv in matches ]
@@ -240,7 +251,7 @@ if __name__ == '__main__':
         new_refs = list(filter(lambda ref : True if ref.id > highest_match_id else False, src_subvs.ids.values()))
         parent_ref = src_subvs.ids[highest_match_id]
     else:
-        print("No matching destinations, starting fresh.")
+        logger.error("No matching destinations, starting fresh.")
 
         ids = list(src_subvs.ids.keys())
         ids.sort()
