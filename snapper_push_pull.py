@@ -51,7 +51,7 @@ class subv_map_t:
                     logger.error(f"Bad match {subv} {ref}")
                     r+=[subv]
             else:
-                logger.error(f"No match for {subv}")
+                logger.info(f"No match for {subv}")
                 r+=[subv]
         for subv in r:
             targets.remove(subv)
