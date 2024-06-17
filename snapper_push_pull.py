@@ -4,6 +4,7 @@ import os
 import shlex
 import argparse
 import logging
+import string
 from pathlib import Path
 from collections import namedtuple 
 
@@ -41,14 +42,24 @@ class subv_map_t:
         for line in lines:
             parts = shlex.split(line)
             if parts:
-                path=parts[12]
-                try:
-                    snapper_id = int(os.path.basename(os.path.dirname(path)))
-                except ValueError:
-                    snapper_id = None
-                if snapper_id:
-                    path = os.path.join(*Path(path).parts[-2:])
-                    self.add(subv_t(snapper_id, path, parts[10]))
+                part_parts = Path(parts[12]).parts
+                uuid = parts[10]
+                if uuid == '-':
+                    continue
+                uuid_parts = uuid.split('-')
+                assert len(uuid) == 36 and \
+                       len(uuid_parts) == 5 and \
+                       min(map(lambda s : min([ c in string.hexdigits for c in s]), [ p for p in uuid_parts ])),\
+                       "Columnn 10 was not a Btrfs UUID"
+                if part_parts[-1] == "snapshot":
+                    try:
+                        snapper_id = int(part_parts[-2])
+                    except ValueError:
+                        snapper_id = None
+                    if snapper_id:
+                        self.add(subv_t(snapper_id,
+                                        f"{snapper_id}/snapshot",
+                                        uuid))
 
     def get_mismatches(self, targets):
         r =[]
