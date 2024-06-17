@@ -47,7 +47,7 @@ class subv_map_t:
                 except ValueError:
                     snapper_id = None
                 if snapper_id:
-                    path = os.path.join(*Path(path).parts[1:])
+                    path = os.path.join(*Path(path).parts[-2:])
                     self.add(subv_t(snapper_id, path, parts[10]))
 
     def get_mismatches(self, targets):
@@ -235,6 +235,9 @@ if __name__ == '__main__':
     dst = get_btrfs(args.dst)
 
     src_subvs = src.get_subv_send_map()
+    if not src_subvs:
+        logger.error("No source snapshots.")
+        exit(-1)
     dst_subvs = dst.get_subv_recv_map()
 
     mismatches = src_subvs.get_mismatches(dst_subvs)
