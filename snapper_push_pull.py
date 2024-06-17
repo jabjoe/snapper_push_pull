@@ -91,8 +91,10 @@ class subv_map_t:
 
 class local_btrfs_t:
     def __init__(self, mnt):
-        logger.info(f"Mount: {mnt}")
         self.mnt = mnt
+
+    def __str__(self):
+        return f"{self.mnt}"
 
     def get_subv_recv_list_cmd(self):
         return f'btrfs subv list -o -p -R "{self.mnt}"/'
@@ -184,10 +186,12 @@ class local_btrfs_t:
 
 class remote_btrfs_t(local_btrfs_t):
     def __init__(self, user, host, mnt):
-        logger.info(f"Remote {user}@{host}")
         super().__init__(mnt)
         self.user = user
         self.host = host
+
+    def __str__(self):
+        return f"{self.user}@{self.host}:{self.mnt}"
 
     def _ssh_wrap_cmd(self, cmd):
         return f"ssh {self.user}@{self.host} '{cmd}'"
@@ -246,6 +250,8 @@ if __name__ == '__main__':
 
     src = get_btrfs(args.src)
     dst = get_btrfs(args.dst)
+
+    logger.info(f'"{src}" -> "{dst}"')
 
     src_subvs = src.get_subv_send_map()
     if not src_subvs:
