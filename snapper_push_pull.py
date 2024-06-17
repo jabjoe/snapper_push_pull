@@ -226,10 +226,10 @@ if __name__ == '__main__':
        exit(-1)
 
     if args.verbose:
-        logger.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO)
 
     if args.debug:
-        logger.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG)
 
     src = get_btrfs(args.src)
     dst = get_btrfs(args.dst)
