@@ -7,6 +7,14 @@ import logging
 from pathlib import Path
 from collections import namedtuple 
 
+parser = argparse.ArgumentParser("Snapper_push_pull")
+parser.add_argument('src', metavar='src_path', type=str, nargs='?', help='snapper controlled source directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
+parser.add_argument('dst', metavar='dst_path', type=str, nargs='?', help='destination directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
+parser.add_argument('--dryrun', help="Don't acturally do it.", action='store_true')
+parser.add_argument('-v', '--verbose', help="Info log.", action='store_true')
+parser.add_argument('--debug', help="Debug log.", action='store_true')
+
+
 logger = logging.getLogger("snapper_push_push")
 
 subv_t = namedtuple('subv_t', ['id', 'path', 'uuid'])
@@ -209,17 +217,13 @@ def get_btrfs(path):
     return local_btrfs_t(path)
 
 
-parser = argparse.ArgumentParser("simple_example")
-parser.add_argument('src', metavar='src_path', type=str, nargs='?', help='snapper controlled source directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
-parser.add_argument('dst', metavar='dst_path', type=str, nargs='?', help='destination directory: /mnt/mylocal/@snaps or root@remote:/mnt/backup/@snaps')
-parser.add_argument('--dryrun', help="Don't acturally do it.", action='store_true')
-parser.add_argument('-v', '--verbose', help="Info log.", action='store_true')
-parser.add_argument('--debug', help="Debug log.", action='store_true')
-
-
 if __name__ == '__main__':
     args = parser.parse_args()
     dryrun = args.dryrun
+
+    if not args.src or not args.dst:
+       parser.print_help()
+       exit(-1)
 
     if args.verbose:
         logger.basicConfig(level=logging.INFO)
