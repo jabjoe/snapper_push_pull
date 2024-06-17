@@ -108,7 +108,7 @@ class local_btrfs_t:
         return f'cat > "{self.mnt}"/"{parent_path}"/info.xml'
 
     def _get_subv_map(self, cmd):
-        logger.debug("CMD:", cmd)
+        logger.debug(f"CMD: {cmd}")
         lines=os.popen(cmd).read().split('\n')
         r = subv_map_t()
         r.from_subv_list(lines)
@@ -123,7 +123,7 @@ class local_btrfs_t:
     def delete_subvs(self, doomed_list):
         for subv in doomed_list:
             cmd = self.get_del_cmd(subv)
-            logger.debug("CMD:", cmd)
+            logger.debug(f"CMD: {cmd}")
             if not dryrun:
                 err = os.system(cmd)
                 if err:
@@ -131,12 +131,12 @@ class local_btrfs_t:
 
     def get_info_xml(self, parent_path):
         cmd = self.get_info_xml_cmd(parent_path)
-        logger.debug("CMD:", cmd)
+        logger.debug(f"CMD: {cmd}")
         return os.popen(cmd).read()
 
     def set_info_xml(self, parent_path, info_xml):
         cmd = self.set_info_xml_cmd(parent_path, info_xml)
-        logger.debug("CMD:", cmd)
+        logger.debug(f"CMD: {cmd}")
         if not dryrun:
             p = os.popen(cmd, 'w')
             p.write(info_xml)
@@ -147,7 +147,7 @@ class local_btrfs_t:
         send_cmd = btrfs_source.get_send_cmd(parent_subv, subv)
         parent_path = os.path.dirname(subv.path)
         pre_recv_cmd = self.get_pre_recv_cmd(parent_path)
-        logger.debug("CMD:", pre_recv_cmd)
+        logger.debug(f"CMD: {pre_recv_cmd}")
 
         if not dryrun:
             err = os.system(pre_recv_cmd)
@@ -157,7 +157,7 @@ class local_btrfs_t:
         recv_cmd = self.get_recv_cmd(parent_path)
 
         cmd = f"{send_cmd} | {recv_cmd}"
-        logger.debug("CMD:", cmd)
+        logger.debug(f"CMD: {cmd}")
 
         if not dryrun:
             err = os.system(cmd)
