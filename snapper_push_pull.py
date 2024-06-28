@@ -192,10 +192,10 @@ class remote_btrfs_t(local_btrfs_t):
         self.host = host
 
     def __str__(self):
-        return f"{self.user}@{self.host}:{self.mnt}"
+        return f"{self.user}@{self.host}:{self.mnt}" if self.user else f"{self.host}:{self.mnt}"
 
     def _ssh_wrap_cmd(self, cmd):
-        return f"ssh {self.user}@{self.host} '{cmd}'"
+        return f"ssh {self.user}@{self.host} '{cmd}'" if self.user else f"ssh {self.host} '{cmd}'"
 
     def get_subv_recv_list_cmd(self):
         return self._ssh_wrap_cmd(super().get_subv_recv_list_cmd())
@@ -223,15 +223,22 @@ class remote_btrfs_t(local_btrfs_t):
 
 
 def get_btrfs(path):
-    parts = path.split(':')
-    if len(parts) > 1:
-        hostname = parts[0]
-        mnt = parts[1]
-        parts = hostname.split('@')
+    if path[0] != '/':
+        parts = path.split(':')
         if len(parts) > 1:
-            username = parts[0]
-            hostname = parts[1]
-            return remote_btrfs_t(username, hostname, mnt)
+            hostname = parts[0]
+            if hostname.count("/") == 0:
+                mnt = parts[1]
+                parts = hostname.split('@')
+                if len(parts) > 1:
+                    username = parts[0]
+                    hostname = parts[1]
+                    return remote_btrfs_t(username, hostname, mnt)
+                else:
+                    return remote_btrfs_t(None, hostname, mnt)
+            else:
+                logger.error("Invalid path given, not clearly remote or local.")
+                exit(-1)
     return local_btrfs_t(path)
 
 
