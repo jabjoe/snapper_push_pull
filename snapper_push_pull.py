@@ -16,7 +16,8 @@ parser.add_argument('dst', metavar='dst_path', type=str, nargs='?',
 parser.add_argument(
     '--dryrun', help="Don't acturally do it.", action='store_true')
 parser.add_argument('-v', '--verbose', help="Info log.", action='store_true')
-parser.add_argument('--debug', help="Debug log.", action='store_true')
+parser.add_argument('-d', '--debug', help="Debug log.", action='store_true')
+parser.add_argument('-l','--list', help="Just list.", action='store_true')
 
 
 logger = logging.getLogger("snapper_push_push")
@@ -258,6 +259,20 @@ if __name__ == '__main__':
         logger.error("No source snapshots.")
         exit(-1)
     dst_subvs = dst.get_subv_recv_map()
+
+    if args.list:
+        print("="*72)
+        print("Source:")
+        print("="*72)
+        for sub_v in src_subvs.ids.values():
+            print(f"src subv: id:{sub_v.id} uuid:{sub_v.uuid} path:{sub_v.path}")
+
+        print("="*72)
+        print("Destination")
+        print("="*72)
+        for sub_v in dst_subvs.ids.values():
+            print(f"dst subv: id:{sub_v.id} uuid:{sub_v.uuid} path:{sub_v.path}")
+        exit(0)
 
     mismatches = src_subvs.get_mismatches(dst_subvs)
     dst.delete_subvs(mismatches)
