@@ -46,12 +46,12 @@ class subv_map_t:
         self.paths.pop(subv.path, None)
         self.uuids.pop(subv.uuid, None)
 
-    def from_subv_list(self, lines):
+    def from_subv_list(self, mnt, lines):
         for line in lines:
             parts = shlex.split(line)
             subv = None
             if parts:
-                part_parts = Path(parts[12]).parts
+                path_parts = Path(parts[12]).parts
                 uuid = parts[10]
                 if uuid == '-':
                     continue
@@ -60,9 +60,10 @@ class subv_map_t:
                     len(uuid_parts) == 5 and \
                     min(map(lambda s: min([c in string.hexdigits for c in s]), [p for p in uuid_parts])), \
                     "Columnn 10 was not a Btrfs UUID"
-                if part_parts[-1] == "snapshot":
+                mnt_match = os.path.join(*path_parts[:-2])
+                if path_parts[-1] == "snapshot" and mnt.endswith(mnt_match):
                     try:
-                        snapper_id = int(part_parts[-2])
+                        snapper_id = int(path_parts[-2])
                     except ValueError:
                         snapper_id = None
                     if snapper_id:
@@ -141,7 +142,7 @@ class local_btrfs_t:
         logger.debug(f"CMD: {cmd}")
         lines = os.popen(cmd).read().split('\n')
         r = subv_map_t()
-        r.from_subv_list(lines)
+        r.from_subv_list(self.mnt, lines)
         return r
 
     def get_subv_recv_map(self):
