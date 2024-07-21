@@ -17,6 +17,7 @@ parser.add_argument(
     '--dryrun', help="Don't acturally do it.", action='store_true')
 parser.add_argument('-v', '--verbose', help="Info log.", action='store_true')
 parser.add_argument('-d', '--debug', help="Debug log.", action='store_true')
+parser.add_argument('-f', '--force', help="Delete subvols at destination that conflict.", action='store_true')
 parser.add_argument('-l','--list', help="Just list.", action='store_true')
 
 
@@ -25,6 +26,8 @@ logger = logging.getLogger("snapper_push_push")
 subv_t = namedtuple('subv_t', ['id', 'path', 'uuid'])
 
 dryrun = False
+
+force = False
 
 
 class subv_map_t:
@@ -46,6 +49,7 @@ class subv_map_t:
     def from_subv_list(self, lines):
         for line in lines:
             parts = shlex.split(line)
+            subv = None
             if parts:
                 part_parts = Path(parts[12]).parts
                 uuid = parts[10]
@@ -62,9 +66,14 @@ class subv_map_t:
                     except ValueError:
                         snapper_id = None
                     if snapper_id:
-                        self.add(subv_t(snapper_id,
+                        subv = subv_t(snapper_id,
                                         f"{snapper_id}/snapshot",
-                                        uuid))
+                                        uuid)
+                        self.add(subv)
+            if subv:
+                logger.debug(f"Found snapper ID {subv.id} for line: {line}")
+            else:
+                logger.debug(f"No snapper ID found for line: {line}")
 
     def get_mismatches(self, targets):
         r = []
@@ -73,7 +82,10 @@ class subv_map_t:
             if ref:
                 if ref.id != subv.id or ref.uuid != subv.uuid:
                     logger.error(f"Bad match {subv} {ref}")
-                    r += [subv]
+                    if force:
+                        r += [subv]
+                    else:
+                        exit(-1)
             else:
                 logger.info(f"No match for {subv}")
                 r += [subv]
@@ -255,6 +267,9 @@ if __name__ == '__main__':
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
+
+    if args.force:
+        force = True
 
     src = get_btrfs(args.src)
     dst = get_btrfs(args.dst)
