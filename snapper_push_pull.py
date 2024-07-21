@@ -105,7 +105,7 @@ class local_btrfs_t:
 
     def get_del_cmd(self, subv):
         parent_path = os.path.dirname(subv.path)
-        return f'btrfs subv del "{self.mnt}"/"{subv.path}" && rm -rf "{self.mnt}"/"{parent_path}"'
+        return f'[ -e "{self.mnt}"/"{subv.path}" ] && btrfs subv del "{self.mnt}"/"{subv.path}" && rm -rf "{self.mnt}"/"{parent_path}" || exit 0'
 
     def get_send_cmd(self, parent_subv, subv):
         if parent_subv:
