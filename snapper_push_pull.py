@@ -60,17 +60,18 @@ class subv_map_t:
                     len(uuid_parts) == 5 and \
                     min(map(lambda s: min([c in string.hexdigits for c in s]), [p for p in uuid_parts])), \
                     "Columnn 10 was not a Btrfs UUID"
-                mnt_match = os.path.join(*path_parts[:-2])
-                if path_parts[-1] == "snapshot" and mnt.endswith(mnt_match):
-                    try:
-                        snapper_id = int(path_parts[-2])
-                    except ValueError:
-                        snapper_id = None
-                    if snapper_id:
-                        subv = subv_t(snapper_id,
-                                        f"{snapper_id}/snapshot",
-                                        uuid)
-                        self.add(subv)
+                if len(path_parts) > 2:
+                    mnt_match = os.path.join(*path_parts[:-2])
+                    if path_parts[-1] == "snapshot" and mnt.endswith(mnt_match):
+                        try:
+                            snapper_id = int(path_parts[-2])
+                        except ValueError:
+                            snapper_id = None
+                        if snapper_id:
+                            subv = subv_t(snapper_id,
+                                            f"{snapper_id}/snapshot",
+                                            uuid)
+                            self.add(subv)
             if subv:
                 logger.debug(f"Found snapper ID {subv.id} for line: {line}")
             else:
