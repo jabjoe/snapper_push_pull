@@ -298,9 +298,6 @@ if __name__ == '__main__':
             print(f"dst subv: id:{sub_v.id} uuid:{sub_v.uuid} path:{sub_v.path}")
         exit(0)
 
-    mismatches = src_subvs.get_mismatches(dst_subvs)
-    dst.delete_subvs(mismatches)
-
     if len(dst_subvs.paths):
         matches = src_subvs.get_matches(dst_subvs)
 
@@ -319,6 +316,10 @@ if __name__ == '__main__':
     else:
         logger.error("No matching destinations, starting fresh.")
 
+        if not force:
+            print("With no matches, force is required to proceed.")
+            exit(-1)
+
         ids = list(src_subvs.ids.keys())
         ids.sort()
 
@@ -328,3 +329,6 @@ if __name__ == '__main__':
     for ref in new_refs:
         dst.recv_subvs(src, parent_ref, ref)
         parent_ref = ref
+
+    mismatches = src_subvs.get_mismatches(dst_subvs)
+    dst.delete_subvs(mismatches)
