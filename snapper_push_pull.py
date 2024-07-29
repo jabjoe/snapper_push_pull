@@ -8,7 +8,7 @@ import string
 from pathlib import Path
 from collections import namedtuple
 
-parser = argparse.ArgumentParser("Snapper_push_pull", description = 'Tool to incrementally push or pull snapper snapshots between machines.')
+parser = argparse.ArgumentParser("snapper_push_pull", description = 'Tool to incrementally push or pull snapper snapshots between machines.')
 parser.add_argument('src', metavar='src_path', type=str, nargs='?',
                     help='snapper controlled source directory: /mnt/mylocal/.snapshots or root@remote:/mnt/backup/.snapshots')
 parser.add_argument('dst', metavar='dst_path', type=str, nargs='?',
