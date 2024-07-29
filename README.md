@@ -11,7 +11,7 @@ It sends the snapshots incrementally and removes defunct snapshots.
 Help
 ----
 
-    usage: Snapper_push_pull [-h] [--dryrun] [-v] [-d] [-f] [-l]
+    usage: snapper_push_pull [-h] [--dryrun] [-v] [-d] [-f] [-l]
                              [src_path] [dst_path]
     
     Tool to incrementally push or pull snapper snapshots between machines.
