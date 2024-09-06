@@ -209,7 +209,7 @@ class remote_btrfs_t(local_btrfs_t):
         return f"{self.user}@{self.host}:{self.mnt}" if self.user else f"{self.host}:{self.mnt}"
 
     def _ssh_wrap_cmd(self, cmd):
-        return f"ssh {self.user}@{self.host} '{cmd}'" if self.user else f"ssh {self.host} '{cmd}'"
+        return f"ssh -C {self.user}@{self.host} '{cmd}'" if self.user else f"ssh -C {self.host} '{cmd}'"
 
     def get_subv_recv_list_cmd(self):
         return self._ssh_wrap_cmd(super().get_subv_recv_list_cmd())
