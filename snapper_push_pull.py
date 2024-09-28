@@ -54,6 +54,7 @@ class subv_map_t:
                 path_parts = Path(parts[12]).parts
                 uuid = parts[10]
                 if uuid == '-':
+                    logger.error(f"Broken subvolume {parts[12]}")
                     continue
                 uuid_parts = uuid.split('-')
                 assert len(uuid) == 36 and \
@@ -123,7 +124,7 @@ class local_btrfs_t:
 
     def get_send_cmd(self, parent_subv, subv):
         if parent_subv:
-            return f'btrfs send -p "{self.mnt}"/"{parent_subv.path}" "{self.mnt}"/"{subv.path}"'
+            return f'btrfs send --proto 2 --compressed-data -c "{self.mnt}"/"{parent_subv.path}" "{self.mnt}"/"{subv.path}"'
         else:
             return f'btrfs send "{self.mnt}"/"{subv.path}"'
 
@@ -209,7 +210,7 @@ class remote_btrfs_t(local_btrfs_t):
         return f"{self.user}@{self.host}:{self.mnt}" if self.user else f"{self.host}:{self.mnt}"
 
     def _ssh_wrap_cmd(self, cmd):
-        return f"ssh -C {self.user}@{self.host} '{cmd}'" if self.user else f"ssh -C {self.host} '{cmd}'"
+        return f"ssh {self.user}@{self.host} '{cmd}'" if self.user else f"ssh -C {self.host} '{cmd}'"
 
     def get_subv_recv_list_cmd(self):
         return self._ssh_wrap_cmd(super().get_subv_recv_list_cmd())
