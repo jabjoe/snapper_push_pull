@@ -19,6 +19,7 @@ parser.add_argument('-v', '--verbose', help="Info log.", action='store_true')
 parser.add_argument('-d', '--debug', help="Debug log.", action='store_true')
 parser.add_argument('-f', '--force', help="Delete subvols at destination that conflict.", action='store_true')
 parser.add_argument('-l','--list', help="Just list.", action='store_true')
+parser.add_argument('-s','--staged', help="Use intermediate file for debug replay.", action='store_true')
 
 
 logger = logging.getLogger("snapper_push_push")
@@ -106,8 +107,9 @@ class subv_map_t:
 
 
 class local_btrfs_t:
-    def __init__(self, mnt):
+    def __init__(self, args, mnt):
         self.mnt = mnt
+        self._args = args
 
     def __str__(self):
         return f"{self.mnt}"
@@ -132,6 +134,11 @@ class local_btrfs_t:
         return f'mkdir -p "{self.mnt}"/"{parent_path}"'
 
     def get_recv_cmd(self, parent_path):
+        if self._args.staged:
+            return f'cat > "{self.mnt}"/"{parent_path}"/staged && ' \
+                   f'cat "{self.mnt}"/"{parent_path}"/staged | btrfs receive "{self.mnt}"/"{parent_path}"/ && ' \
+                   f'rm "{self.mnt}"/"{parent_path}"/staged'
+
         return f'btrfs receive "{self.mnt}"/"{parent_path}"/'
 
     def get_info_xml_cmd(self, parent_path):
@@ -201,8 +208,8 @@ class local_btrfs_t:
 
 
 class remote_btrfs_t(local_btrfs_t):
-    def __init__(self, user, host, mnt):
-        super().__init__(mnt)
+    def __init__(self, args, user, host, mnt):
+        super().__init__(args, mnt)
         self.user = user
         self.host = host
 
@@ -237,7 +244,7 @@ class remote_btrfs_t(local_btrfs_t):
         return self._ssh_wrap_cmd(super().set_info_xml_cmd(parent_path, info_xml))
 
 
-def get_btrfs(path):
+def get_btrfs(path, args):
     if path[0] != '/':
         parts = path.split(':')
         if len(parts) > 1:
@@ -248,13 +255,13 @@ def get_btrfs(path):
                 if len(parts) > 1:
                     username = parts[0]
                     hostname = parts[1]
-                    return remote_btrfs_t(username, hostname, mnt)
+                    return remote_btrfs_t(args, username, hostname, mnt)
                 else:
-                    return remote_btrfs_t(None, hostname, mnt)
+                    return remote_btrfs_t(args, None, hostname, mnt)
             else:
                 logger.error("Invalid path given, not clearly remote or local.")
                 exit(-1)
-    return local_btrfs_t(path)
+    return local_btrfs_t(args, path)
 
 
 if __name__ == '__main__':
@@ -274,8 +281,8 @@ if __name__ == '__main__':
     if args.force:
         force = True
 
-    src = get_btrfs(args.src)
-    dst = get_btrfs(args.dst)
+    src = get_btrfs(args.src, args)
+    dst = get_btrfs(args.dst, args)
 
     logger.info(f'"{src}" -> "{dst}"')
 
