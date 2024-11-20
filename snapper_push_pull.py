@@ -281,8 +281,8 @@ if __name__ == '__main__':
     if args.force:
         force = True
 
-    src = get_btrfs(args.src, args)
-    dst = get_btrfs(args.dst, args)
+    src = get_btrfs(args.src.rstrip("/"), args)
+    dst = get_btrfs(args.dst.rstrip("/"), args)
 
     logger.info(f'"{src}" -> "{dst}"')
 
