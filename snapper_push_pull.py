@@ -55,7 +55,7 @@ class subv_map_t:
                 path_parts = Path(parts[12]).parts
                 uuid = parts[10]
                 if uuid == '-':
-                    logger.error(f"Broken subvolume {parts[12]}")
+                    logger.debug(f"Unrelated subvolume {parts[12]}")
                     continue
                 uuid_parts = uuid.split('-')
                 assert len(uuid) == 36 and \
